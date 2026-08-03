@@ -1,0 +1,14 @@
+{{- if and .Values.output.persistence.enabled (not .Values.output.persistence.existingClaim) }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "traceflow-ai.outputClaimName" . }}
+  labels:
+    {{- include "traceflow-ai.labels" . | nindent 4 }}
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: {{ .Values.output.persistence.size }}
+{{- end }}

@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: traceflow-run-config
+  namespace: traceflow-ai
+data:
+  TRACEFLOW_COMMAND: analyze
+  TRACEFLOW_REQUIREMENT: The infusion pump shall alarm on occlusion within 5 seconds and log the event for audit review.
+  TRACEFLOW_SYSTEM_CONTEXT: ""
+  TRACEFLOW_OUTPUT_DIR: /app/output
+  OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector.observability.svc.cluster.local:4318/v1/traces
+  TRACEFLOW_OTEL_CONSOLE: "false"
+  TRACEFLOW_ENV: production

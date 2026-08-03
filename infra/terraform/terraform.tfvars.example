@@ -1,0 +1,8 @@
+image_repository = "ghcr.io/your-username/traceflow-ai"
+image_tag        = "v1.0.0"
+anthropic_api_key = "replace-me"
+requirement      = "The infusion pump shall alarm on occlusion within 5 seconds and log the event for audit review."
+workload_command = "analyze"
+job_enabled      = true
+cronjob_enabled  = false
+enable_otel_collector = true

@@ -1,0 +1,23 @@
+[run]
+branch = False
+omit =
+    # CLI entry point: tested via integration/manual testing
+    main.py
+    system_orchestrator.py
+    orchestrator.py
+    # Output formatters: file I/O wrappers
+    output/formatter.py
+    output/risk_matrix.py
+    # Demo and build scripts
+    build-scratch-aligned-demo.js
+    record-*.js
+    context.py
+
+[report]
+fail_under = 60
+show_missing = True
+skip_covered = False
+precision = 2
+
+[html]
+directory = htmlcov

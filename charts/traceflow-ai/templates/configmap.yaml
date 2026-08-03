@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "traceflow-ai.fullname" . }}-config
+  labels:
+    {{- include "traceflow-ai.labels" . | nindent 4 }}
+data:
+  TRACEFLOW_COMMAND: {{ .Values.workload.command | quote }}
+  TRACEFLOW_REQUIREMENT: {{ .Values.workload.requirement | quote }}
+  TRACEFLOW_SYSTEM_CONTEXT: {{ .Values.workload.systemContext | quote }}
+  TRACEFLOW_OUTPUT_DIR: {{ .Values.workload.outputDir | quote }}
+  OTEL_EXPORTER_OTLP_ENDPOINT: {{ .Values.workload.otlpEndpoint | quote }}
+  TRACEFLOW_OTEL_CONSOLE: {{ ternary "true" "false" .Values.workload.otelConsole | quote }}
+  TRACEFLOW_ENV: {{ .Values.workload.environment | quote }}

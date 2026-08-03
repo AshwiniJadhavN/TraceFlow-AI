@@ -1,0 +1,28 @@
+# TraceFlow AI Code Owners
+
+# Global owners
+* @ashwinijadhav
+
+# Agents - Core business logic
+/agents/ @ashwinijadhav
+
+# Risk analysis (FMEA, FTA, Hazard)
+/agents/fmea_agent.py @ashwinijadhav
+/agents/fta_agent.py @ashwinijadhav
+/agents/hazard_agent.py @ashwinijadhav
+/agents/hazop_agent.py @ashwinijadhav
+
+# Security & compliance
+/agents/security_agent.py @ashwinijadhav
+/agents/fmea_agent.py @ashwinijadhav
+
+# Output & formatting
+/output/ @ashwinijadhav
+
+# Tests
+/tests/ @ashwinijadhav
+
+# CI/CD and infrastructure
+/.github/ @ashwinijadhav
+/Dockerfile @ashwinijadhav
+/docker-compose.yml @ashwinijadhav

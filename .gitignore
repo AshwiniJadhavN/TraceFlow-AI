@@ -1,0 +1,89 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# PyInstaller
+*.manifest
+*.spec
+
+# Environments
+.env
+.env.local
+.env.*.local
+.venv
+.venv*
+env/
+venv/
+ENV/
+build-script-*
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+*.iml
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+coverage.xml
+.tox/
+
+# Ruff
+.ruff_cache/
+
+# Pre-commit
+.pre-commit*
+
+# Type checking
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Logs
+*.log
+logs/
+
+# Local demo/scratch files
+demo-recordings/
+output/*.json
+output/*.csv
+output/*.xlsx
+examples/*.json
+
+# Node.js (for demo scripts)
+node_modules/
+.npm
+offline_demo/node_modules/
+
+# Aider
+.aider*
+
+# VS Code workspace
+*.code-workspace

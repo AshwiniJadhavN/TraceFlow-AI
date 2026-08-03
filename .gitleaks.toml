@@ -1,0 +1,21 @@
+title = "TraceFlow AI gitleaks configuration"
+
+[allowlist]
+description = "Allow placeholder values and example secrets used in docs and tests"
+regexes = [
+  'your_anthropic_api_key_here',
+  'replace-me',
+  'test-key-for-mocked-tests',
+  'your-key',
+  'sk-ant-\.\.\.',
+  'ghp_[A-Za-z0-9]{36}',
+  'github_pat_[A-Za-z0-9_]{20,}'
+]
+paths = [
+  '^docs/',
+  '^tests/',
+  '^examples/',
+  '^\.env.example$',
+  '^infra/terraform/terraform.tfvars.example$',
+  '^infra/kubernetes/base/secret-template.yaml$'
+]

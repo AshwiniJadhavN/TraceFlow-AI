@@ -1,0 +1,100 @@
+name: PR Code Review
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize]
+    paths:
+      - 'agents/**'
+      - 'output/**'
+      - 'prompts/**'
+      - 'validators/**'
+      - 'tests/**'
+      - 'main.py'
+      - 'orchestrator.py'
+
+permissions:
+  contents: read
+  pull-requests: write
+  security-events: write
+
+jobs:
+  pr-summary:
+    name: Generate PR Summary
+    runs-on: ubuntu-latest
+    if: github.event.action != 'synchronize'
+    
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Summarize changes
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const { data: pr } = await github.rest.pulls.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.issue.number,
+            });
+
+            const { data: files } = await github.rest.pulls.listFiles({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.issue.number,
+            });
+
+            let summary = '## 📋 PR Summary\n\n';
+            summary += `**Changes**: ${files.length} file(s) modified\n\n`;
+
+            // Group files by type
+            const agents = files.filter(f => f.filename.startsWith('agents/'));
+            const tests = files.filter(f => f.filename.startsWith('tests/'));
+            const output = files.filter(f => f.filename.startsWith('output/'));
+            const other = files.filter(f => 
+              !f.filename.startsWith('agents/') &&
+              !f.filename.startsWith('tests/') &&
+              !f.filename.startsWith('output/')
+            );
+
+            if (agents.length > 0) {
+              summary += `### 🤖 Agents (${agents.length})\n`;
+              agents.forEach(f => summary += `- ${f.filename}\n`);
+              summary += '\n';
+            }
+
+            if (tests.length > 0) {
+              summary += `### ✅ Tests (${tests.length})\n`;
+              tests.forEach(f => summary += `- ${f.filename}\n`);
+              summary += '\n';
+            }
+
+            if (output.length > 0) {
+              summary += `### 📊 Output (${output.length})\n`;
+              output.forEach(f => summary += `- ${f.filename}\n`);
+              summary += '\n';
+            }
+
+            if (other.length > 0) {
+              summary += `### 📁 Other (${other.length})\n`;
+              other.forEach(f => summary += `- ${f.filename}\n`);
+            }
+
+            summary += '\n---\n**Checklist before merge:**\n';
+            summary += '- [ ] CI checks pass (lint, type-check, tests)\n';
+            summary += '- [ ] Coverage maintained or improved\n';
+            summary += '- [ ] Tests added for new features\n';
+            summary += '- [ ] Documentation updated\n';
+            summary += '- [ ] No breaking changes\n';
+
+            github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: summary,
+            });

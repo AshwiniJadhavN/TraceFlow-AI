@@ -1,0 +1,69 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: traceflow-ai-run
+  namespace: traceflow-ai
+  labels:
+    app.kubernetes.io/name: traceflow-ai
+spec:
+  ttlSecondsAfterFinished: 86400
+  backoffLimit: 1
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: traceflow-ai
+    spec:
+      serviceAccountName: traceflow-ai
+      restartPolicy: Never
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: traceflow
+          image: ghcr.io/your-username/traceflow-ai:v1.0.0
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+          envFrom:
+            - configMapRef:
+                name: traceflow-run-config
+          env:
+            - name: ANTHROPIC_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: traceflow-anthropic
+                  key: ANTHROPIC_API_KEY
+          command:
+            - /bin/sh
+            - -c
+          args:
+            - |
+              set -eu
+              if [ "$TRACEFLOW_COMMAND" = "system-analyze" ]; then
+                if [ -n "$TRACEFLOW_SYSTEM_CONTEXT" ]; then
+                  printf '%s' "$TRACEFLOW_SYSTEM_CONTEXT" >/tmp/system-context.txt
+                  python main.py system-analyze "$TRACEFLOW_REQUIREMENT" --system-context /tmp/system-context.txt --output "$TRACEFLOW_OUTPUT_DIR"
+                else
+                  python main.py system-analyze "$TRACEFLOW_REQUIREMENT" --output "$TRACEFLOW_OUTPUT_DIR"
+                fi
+              else
+                python main.py analyze "$TRACEFLOW_REQUIREMENT" --output "$TRACEFLOW_OUTPUT_DIR"
+              fi
+          resources:
+            requests:
+              cpu: 500m
+              memory: 1Gi
+            limits:
+              cpu: "2"
+              memory: 2Gi
+          volumeMounts:
+            - name: output
+              mountPath: /app/output
+      volumes:
+        - name: output
+          persistentVolumeClaim:
+            claimName: traceflow-output

@@ -1,0 +1,6 @@
+apiVersion: v2
+name: traceflow-ai
+description: Batch-oriented Helm chart for the TraceFlow AI CLI pipeline
+type: application
+version: 0.1.0
+appVersion: "0.1.0"

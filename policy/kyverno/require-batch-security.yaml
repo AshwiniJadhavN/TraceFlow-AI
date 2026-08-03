@@ -1,0 +1,62 @@
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: traceflow-require-batch-security
+spec:
+  validationFailureAction: Audit
+  background: true
+  rules:
+    - name: require-job-pod-security
+      match:
+        any:
+          - resources:
+              kinds:
+                - Job
+              namespaces:
+                - traceflow-ai
+      validate:
+        message: "TraceFlow Jobs must run as non-root with RuntimeDefault seccomp and no privilege escalation."
+        pattern:
+          spec:
+            template:
+              spec:
+                serviceAccountName: "?*"
+                securityContext:
+                  runAsNonRoot: true
+                  seccompProfile:
+                    type: RuntimeDefault
+                containers:
+                  - name: "*"
+                    securityContext:
+                      allowPrivilegeEscalation: false
+                      capabilities:
+                        drop:
+                          - ALL
+    - name: require-cronjob-pod-security
+      match:
+        any:
+          - resources:
+              kinds:
+                - CronJob
+              namespaces:
+                - traceflow-ai
+      validate:
+        message: "TraceFlow CronJobs must run as non-root with RuntimeDefault seccomp and no privilege escalation."
+        pattern:
+          spec:
+            jobTemplate:
+              spec:
+                template:
+                  spec:
+                    serviceAccountName: "?*"
+                    securityContext:
+                      runAsNonRoot: true
+                      seccompProfile:
+                        type: RuntimeDefault
+                    containers:
+                      - name: "*"
+                        securityContext:
+                          allowPrivilegeEscalation: false
+                          capabilities:
+                            drop:
+                              - ALL

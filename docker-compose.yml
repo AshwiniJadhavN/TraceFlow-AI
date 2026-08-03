@@ -1,0 +1,37 @@
+# Docker Compose for local development
+
+version: '3.9'
+
+services:
+  traceflow:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: traceflow-ai
+    environment:
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+      PYTHONUNBUFFERED: 1
+    volumes:
+      - ./output:/app/output
+      - ./examples:/app/examples
+    working_dir: /app
+    command: python main.py --help
+    stdin_open: true
+    tty: true
+
+  # Run tests in container
+  traceflow-test:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: traceflow-test
+    environment:
+      ANTHROPIC_API_KEY: "test-key-for-mocked-tests"
+    volumes:
+      - .:/app
+    working_dir: /app
+    command: >
+      sh -c "pip install -q pytest pytest-asyncio pytest-cov &&
+             pytest tests/ -v --tb=short --cov=agents --cov=output --cov=prompts --cov=validators"
+    profiles:
+      - test

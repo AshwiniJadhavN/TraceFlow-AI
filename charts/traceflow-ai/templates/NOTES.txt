@@ -1,0 +1,6 @@
+TraceFlow AI has been rendered as a batch workload.
+
+Next steps:
+1. Ensure the Anthropic API key secret exists or set anthropic.apiKey.
+2. Customize workload.requirement and, if needed, workload.command=system-analyze.
+3. Trigger the one-shot Job or enable the CronJob schedule.

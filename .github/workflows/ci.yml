@@ -1,0 +1,235 @@
+name: CI
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'agents/**'
+      - 'output/**'
+      - 'prompts/**'
+      - 'validators/**'
+      - 'tests/**'
+      - 'requirements.txt'
+      - 'pyproject.toml'
+      - '.github/workflows/ci.yml'
+      - 'main.py'
+      - 'orchestrator.py'
+  push:
+    branches:
+      - main
+      - "claude/**"
+    paths:
+      - 'agents/**'
+      - 'output/**'
+      - 'prompts/**'
+      - 'validators/**'
+      - 'tests/**'
+      - 'requirements.txt'
+      - 'pyproject.toml'
+      - '.github/workflows/ci.yml'
+      - 'main.py'
+      - 'orchestrator.py'
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  security-events: write
+  checks: write
+  pull-requests: write
+
+jobs:
+  security-scan:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install security scanning tools
+        run: |
+          python -m pip install --upgrade pip==24.0
+          pip install bandit==1.7.5
+
+      - name: Run Bandit security scan
+        continue-on-error: true
+        run: |
+          bandit -r agents/ output/ prompts/ validators/ \
+            --skip B101 \
+            --format json \
+            --output bandit-report.json || true
+          # Display summary
+          bandit -r agents/ output/ prompts/ validators/ --skip B101
+
+      - name: Upload security report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: security-scan-report
+          path: bandit-report.json
+
+  code-quality:
+    name: Code Quality
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install linting tools
+        run: |
+          python -m pip install --upgrade pip==24.0
+          pip install ruff==0.5.0
+
+      - name: Run ruff linter
+        run: ruff check agents output prompts validators observability context.py orchestrator.py system_orchestrator.py main.py --ignore E501
+
+      - name: Format check
+        run: ruff format agents output prompts validators observability context.py orchestrator.py system_orchestrator.py main.py --check --diff
+
+  type-check:
+    name: Type Checking
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip==24.0
+          pip install -r requirements.txt pyright==1.1.390
+
+      - name: Run Pyright type checker
+        run: pyright agents output prompts validators observability context.py orchestrator.py system_orchestrator.py main.py --outputjson
+
+  test:
+    name: Tests & Coverage
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip==24.0
+          pip install -r requirements.txt
+
+      - name: Run tests with coverage
+        run: |
+          pytest tests/ -v --tb=short --ignore=tests/integration \
+            --cov=agents --cov=output --cov=prompts --cov=validators \
+            --cov-report=xml --cov-report=term-missing --cov-fail-under=60
+        env:
+          ANTHROPIC_API_KEY: "test-key-for-mocked-tests"
+
+      - name: Upload coverage reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-reports
+          path: |
+            coverage.xml
+            htmlcov/
+          retention-days: 5
+
+      - name: Comment coverage on PR
+        if: github.event_name == 'pull_request' && always()
+        uses: py-cov-action/python-coverage-comment-action@v3
+        with:
+          GITHUB_TOKEN: ${{ github.token }}
+          MINIMUM_GREEN: 70
+          MINIMUM_ORANGE: 60
+
+  summary:
+    name: CI Summary & DORA Metrics
+    runs-on: ubuntu-latest
+    needs: [security-scan, code-quality, type-check, test]
+    if: always()
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Calculate DORA Metrics
+        id: dora
+        run: |
+          # Lead time: time from push to CI complete (in minutes)
+          START_TIME=$(git log -1 --format=%ai | date -f - +%s 2>/dev/null || date +%s)
+          END_TIME=$(date +%s)
+          LEAD_TIME=$(( ($END_TIME - $START_TIME) / 60 ))
+          echo "lead_time=${LEAD_TIME}" >> $GITHUB_OUTPUT
+          
+          # Deployment frequency: inferred from commit
+          COMMITS_TODAY=$(git log --since="24 hours ago" --oneline | wc -l)
+          echo "commits_today=${COMMITS_TODAY}" >> $GITHUB_OUTPUT
+          
+          # Change failure rate: based on test results
+          if [ "${{ needs.test.result }}" != "success" ]; then
+            FAILURE_RATE=100
+          else
+            FAILURE_RATE=0
+          fi
+          echo "failure_rate=${FAILURE_RATE}" >> $GITHUB_OUTPUT
+          
+          echo "📊 DORA Metrics:"
+          echo "  Lead Time: ${LEAD_TIME} minutes"
+          echo "  Commits Today: ${COMMITS_TODAY}"
+          echo "  Change Failure Rate: ${FAILURE_RATE}%"
+
+      - name: Check CI status
+        run: |
+          if [ "${{ needs.security-scan.result }}" != "success" ] && \
+             [ "${{ needs.security-scan.result }}" != "skipped" ]; then
+            echo "⚠️  Security scan reported issues (see artifact)"
+          fi
+          if [ "${{ needs.code-quality.result }}" != "success" ] || \
+             [ "${{ needs.type-check.result }}" != "success" ] || \
+             [ "${{ needs.test.result }}" != "success" ]; then
+            echo "❌ CI checks failed"
+            exit 1
+          fi
+          echo "✅ All CI checks passed (Lead time: ${{ steps.dora.outputs.lead_time }}m)"
+
+      - name: Comment DORA metrics on PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ github.token }}
+          script: |
+            const leadTime = "${{ steps.dora.outputs.lead_time }}";
+            const failureRate = "${{ steps.dora.outputs.failure_rate }}";
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `📊 **DORA Metrics**\n- Lead Time: ${leadTime} minutes\n- Change Failure Rate: ${failureRate}%`
+            });
+

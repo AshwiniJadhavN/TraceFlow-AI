@@ -1,0 +1,75 @@
+{{- if .Values.cronjob.enabled }}
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ include "traceflow-ai.fullname" . }}-scheduled
+  labels:
+    {{- include "traceflow-ai.labels" . | nindent 4 }}
+spec:
+  schedule: {{ .Values.cronjob.schedule | quote }}
+  concurrencyPolicy: {{ .Values.cronjob.concurrencyPolicy }}
+  successfulJobsHistoryLimit: {{ .Values.cronjob.successfulJobsHistoryLimit }}
+  failedJobsHistoryLimit: {{ .Values.cronjob.failedJobsHistoryLimit }}
+  jobTemplate:
+    spec:
+      backoffLimit: {{ .Values.cronjob.backoffLimit }}
+      ttlSecondsAfterFinished: {{ .Values.cronjob.ttlSecondsAfterFinished }}
+      template:
+        metadata:
+          labels:
+            {{- include "traceflow-ai.labels" . | nindent 12 }}
+        spec:
+          serviceAccountName: {{ include "traceflow-ai.serviceAccountName" . }}
+          restartPolicy: Never
+          securityContext:
+            runAsNonRoot: true
+            seccompProfile:
+              type: RuntimeDefault
+          containers:
+            - name: traceflow
+              image: {{ printf "%s:%s" .Values.image.repository .Values.image.tag | quote }}
+              imagePullPolicy: {{ .Values.image.pullPolicy }}
+              securityContext:
+                allowPrivilegeEscalation: false
+                capabilities:
+                  drop:
+                    - ALL
+              envFrom:
+                - configMapRef:
+                    name: {{ include "traceflow-ai.fullname" . }}-config
+              env:
+                - name: ANTHROPIC_API_KEY
+                  valueFrom:
+                    secretKeyRef:
+                      name: {{ include "traceflow-ai.secretName" . }}
+                      key: ANTHROPIC_API_KEY
+              command:
+                - /bin/sh
+                - -c
+              args:
+                - |
+                  set -eu
+                  if [ "$TRACEFLOW_COMMAND" = "system-analyze" ]; then
+                    if [ -n "$TRACEFLOW_SYSTEM_CONTEXT" ]; then
+                      printf '%s' "$TRACEFLOW_SYSTEM_CONTEXT" >/tmp/system-context.txt
+                      python main.py system-analyze "$TRACEFLOW_REQUIREMENT" --system-context /tmp/system-context.txt --output "$TRACEFLOW_OUTPUT_DIR"
+                    else
+                      python main.py system-analyze "$TRACEFLOW_REQUIREMENT" --output "$TRACEFLOW_OUTPUT_DIR"
+                    fi
+                  else
+                    python main.py analyze "$TRACEFLOW_REQUIREMENT" --output "$TRACEFLOW_OUTPUT_DIR"
+                  fi
+              resources:
+                {{- toYaml .Values.resources | nindent 16 }}
+              volumeMounts:
+                - name: output
+                  mountPath: /app/output
+          volumes:
+            - name: output
+              {{- if .Values.output.persistence.enabled }}
+              persistentVolumeClaim:
+                claimName: {{ include "traceflow-ai.outputClaimName" . }}
+              {{- else }}
+              emptyDir: {}
+              {{- end }}
+{{- end }}

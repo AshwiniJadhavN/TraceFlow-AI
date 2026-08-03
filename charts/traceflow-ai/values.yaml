@@ -1,0 +1,52 @@
+image:
+  repository: ghcr.io/your-username/traceflow-ai
+  tag: v1.0.0
+  pullPolicy: IfNotPresent
+
+anthropic:
+  existingSecret: ""
+  apiKey: ""
+
+serviceAccount:
+  create: true
+  name: ""
+
+workload:
+  command: analyze
+  requirement: The infusion pump shall alarm on occlusion within 5 seconds and log the event for audit review.
+  systemContext: ""
+  outputDir: /app/output
+  environment: production
+  otlpEndpoint: http://otel-collector.observability.svc.cluster.local:4318/v1/traces
+  otelConsole: false
+
+job:
+  enabled: true
+  backoffLimit: 1
+  ttlSecondsAfterFinished: 86400
+
+cronjob:
+  enabled: false
+  schedule: "0 4 * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  backoffLimit: 1
+  ttlSecondsAfterFinished: 86400
+
+resources:
+  requests:
+    cpu: 500m
+    memory: 1Gi
+  limits:
+    cpu: "2"
+    memory: 2Gi
+
+output:
+  persistence:
+    enabled: true
+    existingClaim: ""
+    size: 5Gi
+
+networkPolicy:
+  enabled: true

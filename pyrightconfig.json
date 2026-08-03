@@ -1,0 +1,33 @@
+{
+  "typeCheckingMode": "standard",
+  "pythonVersion": "3.11",
+  "pythonPath": ".venv/bin/python",
+  "include": [
+    "agents",
+    "output",
+    "prompts",
+    "validators",
+    "tests",
+    "main.py",
+    "orchestrator.py",
+    "system_orchestrator.py"
+  ],
+  "exclude": [
+    "**/__pycache__",
+    "**/.venv",
+    "**/node_modules",
+    "demo-recordings",
+    "offline_demo"
+  ],
+  "ignore": [
+    "build-scratch-aligned-demo.js",
+    "record-*.js"
+  ],
+  "reportMissingImports": true,
+  "reportMissingTypeStubs": false,
+  "reportOptionalMemberAccess": "warning",
+  "reportGeneralTypeIssues": "warning",
+  "reportIncompatibleMethodOverride": "warning",
+  "strictListInference": false,
+  "strictDictInference": false
+}

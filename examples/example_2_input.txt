@@ -1,0 +1,1 @@
+The software shall calculate and display the recommended insulin dose to the patient based on current blood glucose level and carbohydrate intake.
