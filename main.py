@@ -97,16 +97,16 @@ def analyze(
             orch = Orchestrator(api_key=api_key)
             if json_only:
                 report = asyncio.run(orch.run(requirement))
-                print(json.dumps(report, indent=2))
+                print(json.dumps(report.to_report_dict(), indent=2))
                 return
 
             with Progress(SpinnerColumn(), TextColumn("{task.description}"), console=console) as p:
                 t = p.add_task("Running software pipeline...", total=None)
-                report = asyncio.run(orch.run(requirement))
+                result = asyncio.run(orch.run(requirement))
                 p.update(t, completed=True)
 
             console.print("\n[bold green]Analysis complete![/bold green]")
-            _save_and_print(report, output_dir, console)
+            _save_and_print(result.to_report_dict(), output_dir, console)
         except Exception as exc:
             mark_span_error(span, exc)
             raise

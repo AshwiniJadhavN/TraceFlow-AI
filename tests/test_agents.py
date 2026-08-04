@@ -58,7 +58,7 @@ class TestClassificationAgent:
         ctx = RiskContext(requirement=REQ)
         await agent.run(ctx)
         assert ctx.iec_62304_class == "C"
-        assert "Life-critical" in ctx.iec_62304_rationale
+        assert "Life-critical" in (ctx.iec_62304_rationale or "")
 
     def test_builds_prompt_with_requirement(self):
         agent = ClassificationAgent(MagicMock())
@@ -123,6 +123,7 @@ class TestFMEAAgent:
         ctx.probability_before_mitigation = "Occasional"
         agent = FMEAAgent(_mock_client(json.dumps(payload)))
         await agent.run(ctx)
+        assert ctx.fmea is not None
         assert ctx.fmea["rpn_before"] == 192
         assert ctx.fmea["rpn_after"] == 32
 
@@ -150,5 +151,6 @@ class TestReviewAgent:
         ctx.residual_risk_acceptable = True
         agent = ReviewAgent(_mock_client(json.dumps(payload)))
         await agent.run(ctx)
+        assert ctx.validation_summary is not None
         assert ctx.validation_summary["consistent"] is True
         assert ctx.validation_summary["reviewed_by"] == "ReviewAgent"

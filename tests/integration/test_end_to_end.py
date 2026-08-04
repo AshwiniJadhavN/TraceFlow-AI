@@ -12,17 +12,14 @@ Each test uses realistic mocked LLM responses to validate:
 - Regulatory compliance requirements
 """
 
+import asyncio
 import json
+from unittest.mock import AsyncMock
+
 import pytest
-from unittest.mock import MagicMock, AsyncMock, patch
-from dataclasses import replace
 
-from orchestrator import Orchestrator
-from context import RiskContext
-from agents.base_agent import BaseAgent
 from agents.classification_agent import ClassificationAgent
-from agents.hazard_agent import HazardAgent
-
+from orchestrator import Orchestrator
 
 # ============================================================================
 # Fixtures: Realistic LLM Response Mocks
@@ -130,7 +127,7 @@ def mock_orchestrator_client(
 ):
     """Mock Anthropic client with all agent responses."""
     client = AsyncMock()
-    
+
     # Sequence of responses for each agent call
     responses = [
         mock_classification_response,
@@ -139,13 +136,13 @@ def mock_orchestrator_client(
         mock_security_response,
         mock_usability_response,
     ]
-    
+
     async def mock_create(*args, **kwargs):
         response = AsyncMock()
         # Pop from responses list to simulate sequential calls
         response.content = [AsyncMock(text=json.dumps(responses.pop(0)))]
         return response
-    
+
     client.messages.create = mock_create
     return client
 
@@ -161,7 +158,7 @@ async def test_full_pipeline_class_c_device(
 ):
     """
     Test complete TraceFlow pipeline for Class C device.
-    
+
     Validates:
     - Classification agent identifies Class C
     - Hazard analysis finds critical issues
@@ -176,22 +173,22 @@ async def test_full_pipeline_class_c_device(
         {"vulnerabilities": [{"severity": "HIGH"}]},
         {"usability_issues": []},
     ]
-    
+
     async def mock_create(*args, **kwargs):
         response = AsyncMock()
         response.content = [AsyncMock(text=json.dumps(responses.pop(0)))]
         return response
-    
+
     mock_orchestrator_client.messages.create = mock_create
-    
+
     # Execute orchestration
     orchestrator = Orchestrator(mock_orchestrator_client)
     result_context = await orchestrator.run(populated_risk_context)
-    
+
     # Validations
     assert result_context.iec_62304_class == "C"
     assert result_context.risk_level == "HIGH"
-    assert len(result_context.identified_hazards) > 0
+    assert result_context.identified_hazards is not None and len(result_context.identified_hazards) > 0
     assert result_context.security_assessment is not None
 
 
@@ -202,27 +199,27 @@ async def test_pipeline_error_recovery(
 ):
     """
     Test pipeline continues after transient LLM error.
-    
+
     Validates retry logic handles temporary failures gracefully.
     """
     call_count = 0
-    
+
     async def mock_create_with_retry(*args, **kwargs):
         nonlocal call_count
         call_count += 1
-        
+
         # First call fails, second succeeds
         if call_count == 1:
             raise Exception("Temporary API error")
-        
+
         response = AsyncMock()
         response.content = [AsyncMock(text=json.dumps({"iec_62304_class": "B"}))]
         return response
-    
+
     mock_orchestrator_client.messages.create = mock_create_with_retry
-    
+
     orchestrator = Orchestrator(mock_orchestrator_client)
-    
+
     # Should retry and succeed
     result_context = await orchestrator.run(risk_context_class_b)
     assert result_context.iec_62304_class == "B"
@@ -236,7 +233,7 @@ async def test_pipeline_data_flow(
 ):
     """
     Test data flows correctly between agents.
-    
+
     Validates RiskContext is properly updated by each agent
     without data loss or corruption.
     """
@@ -247,22 +244,22 @@ async def test_pipeline_data_flow(
         {"vulnerabilities": []},
         {"usability_issues": []},
     ]
-    
+
     async def mock_create(*args, **kwargs):
         response = AsyncMock()
         response.content = [AsyncMock(text=json.dumps(responses.pop(0)))]
         return response
-    
+
     mock_orchestrator_client.messages.create = mock_create
-    
+
     orchestrator = Orchestrator(mock_orchestrator_client)
-    
+
     # Store original context values
     original_requirement = populated_risk_context.requirement
     original_device_name = populated_risk_context.device_name
-    
+
     result_context = await orchestrator.run(populated_risk_context)
-    
+
     # Validate data is preserved
     assert result_context.requirement == original_requirement
     assert result_context.device_name == original_device_name
@@ -281,7 +278,7 @@ async def test_class_c_requires_detailed_analysis(
 ):
     """
     Test that Class C devices trigger comprehensive analysis.
-    
+
     IEC 62304 requires rigorous analysis for Class C devices.
     Validates all critical hazard analysis agents execute.
     """
@@ -292,20 +289,20 @@ async def test_class_c_requires_detailed_analysis(
         {"vulnerabilities": [{"severity": "CRITICAL"}]},
         {"usability_issues": [{"severity": "HIGH"}]},
     ]
-    
+
     async def mock_create(*args, **kwargs):
         response = AsyncMock()
         response.content = [AsyncMock(text=json.dumps(responses.pop(0)))]
         return response
-    
+
     mock_orchestrator_client.messages.create = mock_create
-    
+
     orchestrator = Orchestrator(mock_orchestrator_client)
     result_context = await orchestrator.run(risk_context_class_c)
-    
+
     # All analyses should be performed
     assert result_context.iec_62304_class == "C"
-    assert len(result_context.identified_hazards) > 0
+    assert result_context.identified_hazards is not None and len(result_context.identified_hazards) > 0
     assert result_context.security_assessment is not None
     assert result_context.usability_assessment is not None
 
@@ -316,21 +313,21 @@ async def test_malformed_llm_response_handling(
 ):
     """
     Test graceful handling of invalid LLM responses.
-    
+
     Validates error handling when LLM returns malformed JSON.
     """
     client = AsyncMock()
-    
+
     async def mock_create_malformed(*args, **kwargs):
         response = AsyncMock()
         # Return invalid JSON
         response.content = [AsyncMock(text="Not valid JSON at all")]
         return response
-    
+
     client.messages.create = mock_create_malformed
-    
+
     orchestrator = Orchestrator(client)
-    
+
     # Should handle gracefully (raise or log, but not crash)
     with pytest.raises((ValueError, json.JSONDecodeError)):
         await orchestrator.run(populated_risk_context)
@@ -347,12 +344,12 @@ async def test_fmea_fta_security_run_in_parallel(
 ):
     """
     Test that FMEA, FTA, Security, and Usability agents run in parallel.
-    
+
     Validates architectural decision to run agents concurrently
     for performance (target: <60s per requirement).
     """
     import time
-    
+
     responses = [
         {"iec_62304_class": "B"},
         {"identified_hazards": [{"id": "H1"}]},
@@ -360,22 +357,22 @@ async def test_fmea_fta_security_run_in_parallel(
         {"vulnerabilities": []},
         {"usability_issues": []},
     ]
-    
+
     async def mock_create(*args, **kwargs):
         response = AsyncMock()
         response.content = [AsyncMock(text=json.dumps(responses.pop(0)))]
         # Simulate LLM latency
-        await pytest.asyncio.sleep(0.1)
+        await asyncio.sleep(0.1)
         return response
-    
+
     mock_orchestrator_client.messages.create = mock_create
-    
+
     orchestrator = Orchestrator(mock_orchestrator_client)
-    
+
     start = time.time()
-    result_context = await orchestrator.run(populated_risk_context)
+    await orchestrator.run(populated_risk_context)
     elapsed = time.time() - start
-    
+
     # If executed sequentially: 0.1 * 5 = 0.5s
     # If executed with parallelism: ~0.2-0.3s
     # This validates parallel execution assumption
@@ -393,7 +390,7 @@ async def test_pipeline_output_format(
 ):
     """
     Test final output conforms to expected format.
-    
+
     Validates all required fields are present in final report.
     """
     responses = [
@@ -403,17 +400,17 @@ async def test_pipeline_output_format(
         {"vulnerabilities": [{"id": "SEC-001", "severity": "HIGH"}]},
         {"usability_issues": [{"issue": "Unclear UI", "severity": "MEDIUM"}]},
     ]
-    
+
     async def mock_create(*args, **kwargs):
         response = AsyncMock()
         response.content = [AsyncMock(text=json.dumps(responses.pop(0)))]
         return response
-    
+
     mock_orchestrator_client.messages.create = mock_create
-    
+
     orchestrator = Orchestrator(mock_orchestrator_client)
     result_context = await orchestrator.run(populated_risk_context)
-    
+
     # Validate required fields
     assert result_context.iec_62304_class in ["A", "B", "C"]
     assert result_context.risk_level in ["LOW", "MEDIUM", "HIGH", "CRITICAL"]
@@ -432,11 +429,11 @@ async def test_classification_agent_output_schema(
 ):
     """
     Regression test: Ensure ClassificationAgent maintains output schema.
-    
+
     Validates changes to agent don't break downstream consumers.
     """
     client = AsyncMock()
-    
+
     response = AsyncMock()
     response.content = [AsyncMock(text=json.dumps({
         "iec_62304_class": "B",
@@ -445,14 +442,14 @@ async def test_classification_agent_output_schema(
         "key_hazards": ["Power loss"],
     }))]
     client.messages.create.return_value = response
-    
+
     agent = ClassificationAgent(client)
-    result_context = await agent.run(risk_context_class_b)
-    
+    await agent.run(risk_context_class_b)
+
     # Validate all expected fields are present
-    assert hasattr(result_context, "iec_62304_class")
-    assert result_context.iec_62304_class == "B"
-    assert hasattr(result_context, "risk_level")
+    assert hasattr(risk_context_class_b, "iec_62304_class")
+    assert risk_context_class_b.iec_62304_class == "B"
+    assert hasattr(risk_context_class_b, "risk_level")
 
 
 if __name__ == "__main__":

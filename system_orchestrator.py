@@ -18,6 +18,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+from collections.abc import Sequence
 from datetime import UTC, datetime
 from typing import Any
 
@@ -107,7 +108,7 @@ class SystemOrchestrator:
         )
 
     @staticmethod
-    def _check_gather(results: list[Any], stage: str) -> None:
+    def _check_gather(results: Sequence[Any], stage: str) -> None:
         failures = [str(r) for r in results if isinstance(r, Exception)]
         if failures:
             raise RuntimeError(

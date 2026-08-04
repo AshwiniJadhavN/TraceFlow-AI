@@ -14,6 +14,19 @@ class RiskContext:
     requirement: str = ""
     model_requirement: str = ""
 
+    # Device metadata
+    device_name: str | None = None
+    intended_use: str | None = None
+    potential_for_serious_injury: bool | None = None
+
+    # Overall risk level (set by ClassificationAgent)
+    risk_level: str | None = None
+
+    # Consolidated hazard / assessment summaries
+    identified_hazards: list[dict[str, Any]] | None = None
+    security_assessment: dict[str, Any] | None = None
+    usability_assessment: dict[str, Any] | None = None
+
     # System-level (populated by system engineering pipeline)
     system_description: str | None = None
     model_system_description: str | None = None

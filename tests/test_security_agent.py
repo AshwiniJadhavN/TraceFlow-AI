@@ -130,6 +130,7 @@ class TestSecurityAgent:
         ctx.iec_62304_class = "C"
         agent = SecurityAgent(_mock_client(json.dumps(payload)))
         await agent.run(ctx)
+        assert ctx.cybersecurity_risks is not None
         assert ctx.cybersecurity_risks["threats"] == []
 
     def test_prompt_contains_requirement_and_stride_reference(self):

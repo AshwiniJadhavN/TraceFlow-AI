@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any
 
 import matplotlib
+import matplotlib.axes
 
 matplotlib.use("Agg")
 import matplotlib.patches as patches
@@ -54,7 +55,7 @@ class RiskMatrixPlotter:
         plt.close(fig)
         return path
 
-    def _draw(self, ax: plt.Axes, probability: str, severity: str, title: str) -> None:
+    def _draw(self, ax: matplotlib.axes.Axes, probability: str, severity: str, title: str) -> None:
         n_prob = len(PROBABILITY_LEVELS)
         n_sev = len(SEVERITY_LEVELS)
 

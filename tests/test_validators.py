@@ -4,17 +4,17 @@ from __future__ import annotations
 
 import pytest
 
+from validators.data_privacy import sanitize_for_model
 from validators.output_validators import (
     RISK_MATRIX,
+    VALID_CLASSES,
+    VALID_PROBABILITIES,
+    VALID_SEVERITIES,
     check_enum,
     correct_fmea_rpn,
     correct_risk_level,
     validate_required_fields,
-    VALID_CLASSES,
-    VALID_PROBABILITIES,
-    VALID_SEVERITIES,
 )
-from validators.data_privacy import sanitize_for_model
 
 
 class TestCheckEnum:
@@ -148,7 +148,7 @@ class TestCorrectFmeaRpn:
             "severity_score_after": 5, "occurrence_score_after": 1, "detectability_score_after": 1,
             "rpn_after": 5,
         }
-        result, corrections = correct_fmea_rpn(data)
+        result, _corrections = correct_fmea_rpn(data)
         assert result["severity_score"] == 10    # clamped from 11
         assert result["occurrence_score"] == 1   # clamped from 0
         assert result["rpn_before"] == 50         # 10 * 1 * 5
@@ -156,5 +156,5 @@ class TestCorrectFmeaRpn:
     def test_missing_keys_ignored_gracefully(self):
         # Partial data should not crash
         data = {"severity_score": 5, "occurrence_score": 3}
-        result, corrections = correct_fmea_rpn(data)
+        _result, corrections = correct_fmea_rpn(data)
         assert corrections == []

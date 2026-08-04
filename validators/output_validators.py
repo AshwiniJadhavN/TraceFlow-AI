@@ -8,6 +8,10 @@ All public functions either:
 from __future__ import annotations
 
 from collections.abc import Iterable
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from context import RiskContext
 
 VALID_CLASSES = {"A", "B", "C"}
 VALID_PROBABILITIES = {"Frequent", "Probable", "Occasional", "Remote", "Improbable"}
@@ -103,7 +107,7 @@ def correct_fmea_rpn(data: dict) -> tuple[dict, list[str]]:
     return data, corrections
 
 
-def build_review_summary(ctx: object) -> dict:
+def build_review_summary(ctx: RiskContext) -> dict:
     """Extract the minimal fields needed by ReviewAgent.
 
     Avoids passing the full nested JSON (reduces tokens and 'lost in the

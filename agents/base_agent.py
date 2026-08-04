@@ -53,7 +53,10 @@ class BaseAgent(ABC):
             system=self.system_prompt,
             messages=[{"role": "user", "content": user_prompt}],
         )
-        return response.content[0].text
+        block = response.content[0]
+        if not hasattr(block, "text"):
+            raise ValueError(f"Unexpected content block type: {type(block).__name__}")
+        return block.text  # type: ignore[union-attr]
 
     @staticmethod
     def extract_json(text: str) -> dict[str, Any]:

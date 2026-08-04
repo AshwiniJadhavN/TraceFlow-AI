@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+from collections.abc import Sequence
 from datetime import UTC, datetime
 from typing import Any
 
@@ -105,7 +106,7 @@ class Orchestrator:
         )
 
     @staticmethod
-    def _check_gather_results(results: list[Any], stage: str) -> None:
+    def _check_gather_results(results: Sequence[Any], stage: str) -> None:
         """Raise a consolidated RuntimeError if any gather result is an exception."""
         failures = [str(r) for r in results if isinstance(r, Exception)]
         if failures:
@@ -113,15 +114,23 @@ class Orchestrator:
                 f"{stage} failed ({len(failures)}/{len(results)} agents): " + " | ".join(failures)
             )
 
-    async def run(self, requirement: str) -> dict[str, Any]:
-        """Execute the full agentic pipeline and return the assembled report."""
+    async def run(self, requirement: str | RiskContext) -> RiskContext:
+        """Execute the full agentic pipeline and return the populated RiskContext.
+
+        *requirement* can be either a plain requirement string (the typical CLI
+        path) or a pre-populated :class:`RiskContext` (used in tests and when
+        the caller wants to supply additional context upfront).
+        """
         with tracer.start_as_current_span("traceflow.pipeline.software") as span:
-            span.set_attribute("traceflow.requirement_length", len(requirement))
-            ctx = RiskContext(requirement=requirement)
+            if isinstance(requirement, RiskContext):
+                ctx = requirement
+            else:
+                ctx = RiskContext(requirement=requirement)
+            span.set_attribute("traceflow.requirement_length", len(ctx.requirement))
             ctx.pipeline_name = "software"
             ctx.model_name = MODEL
             ctx.prepare_model_inputs()
-            logger.info("TraceFlow AI starting: %s...", requirement[:80])
+            logger.info("TraceFlow AI starting: %s...", ctx.requirement[:80])
 
             logger.info("Stage 1: ClassificationAgent")
             await self._run_agent_with_retry(ClassificationAgent(self.client), ctx)
@@ -153,4 +162,4 @@ class Orchestrator:
 
             logger.info("TraceFlow AI pipeline complete")
             span.set_attribute("traceflow.audit_events", len(ctx.audit_trail))
-            return ctx.to_report_dict()
+            return ctx
